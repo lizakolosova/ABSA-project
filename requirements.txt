@@ -5,3 +5,7 @@ matplotlib==3.10.6
 seaborn==0.13.2
 scikit-learn==1.7.2
 tensorflow==2.20.0
+
+ollama~=0.6.0
+spacy~=3.8.7
+vaderSentiment~=3.3.2
