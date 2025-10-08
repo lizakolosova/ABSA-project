@@ -1,0 +1,42 @@
+{
+  "simple": [
+    {
+      "text": "Wow... Loved this place.",
+      "expected_aspects": [["place", "positive"]]
+    },
+    {
+      "text": "Crust is not good.",
+      "expected_aspects": [["crust", "negative"]]
+    },
+    {
+      "text":  "Pretty awesome place.",
+      "expected_aspects": [["place", "positive"]]
+    },
+    {
+      "text":  "Ambience is perfect.",
+      "expected_aspects": [["ambience", "positive"]]
+    }
+  ],
+  "medium": [
+    {
+      "text": "Service was very prompt.",
+      "expected_aspects": [["service", "positive"]]
+    },
+    {
+      "text": "Service sucks.",
+      "expected_aspects": [["service", "negative"]]
+    },
+    {
+      "text": "Loved it... friendly servers, great food, wonderful and imaginative menu.",
+      "expected_aspects": [["servers", "positive"], ["food", "positive"], ["menu", "positive"]]
+    },
+    {
+      "text": "The selection on the menu was great and so were the prices.",
+      "expected_aspects": [["selection", "positive"], ["menu", "neutral"], ["prices", "positive"]]
+    },
+    {
+      "text": "We are so glad we found this place.",
+      "expected_aspects": [["place", "positive"]]
+    }
+  ]
+}

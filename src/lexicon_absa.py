@@ -1,91 +1,138 @@
-# Implementation 1
 from typing import List
-
 import spacy
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 from src.base import ABSAAnalyzer, AspectSentiment
+from src.utils import (
+    find_aspect_root,
+    get_or_create_aspect,
+    compute_intensity_modifier,
+    average_conjunct_sentiments,
+    aggregate_sentiment_scores,
+    has_phrase_negation,
+    _split_candidates,
+    _is_valid_candidate
+)
+
+DETERMINERS = {"this", "that", "these", "those", "a", "an", "the"}
+
+def _normalize_candidate(text: str) -> str:
+    words = text.strip().split()
+    while words and words[0].lower() in DETERMINERS:
+        words.pop(0)
+    return " ".join(words)
 
 class LexiconABSA(ABSAAnalyzer):
+    PRONOUNS_TO_SKIP = {"which", "that", "this", "it", "they", "he", "she", "we", "you"}
+
+    INTENSIFIERS = {
+        "very": 0.3, "extremely": 0.5, "incredibly": 0.5, "absolutely": 0.4,
+        "really": 0.3, "totally": 0.4, "completely": 0.5, "utterly": 0.5,
+        "quite": 0.2, "pretty": 0.2, "rather": 0.2, "fairly": 0.15,
+        "too": 0.3, "so": 0.3, "highly": 0.4, "exceptionally": 0.5
+    }
+
+    DIMINISHERS = {
+        "slightly": -0.3, "somewhat": -0.2, "barely": -0.4, "hardly": -0.5,
+        "scarcely": -0.4, "marginally": -0.3, "a bit": -0.2, "a little": -0.2,
+        "kind of": -0.3, "sort of": -0.3
+    }
 
     def __init__(self):
         self.nlp = spacy.load("en_core_web_trf")
         self.analyzer = SentimentIntensityAnalyzer()
 
-    @staticmethod
-    def convert_score_to_label(score: float) -> str:
-        if score >= 0.05:
-            return "POSITIVE"
-        elif score <= -0.05:
-            return "NEGATIVE"
-        else:
-            return "NEUTRAL"
-
-#the method to check if the token(part of the text) has "negation" (for example not good means negative, not positive etc)
-    @staticmethod
-    def has_negation(token):
-        for child in token.children:
-            if child.dep_ == 'neg':
-                return True
-        for child in token.head.children:
-            if child.dep_ == 'neg':
-                return True
-        return False
+    def get_sentiment_score(self, token, check_negation: bool = True) -> float:
+        phrase_tokens = [t.text for t in token.lefts if t.dep_ == "advmod"] + [token.text]
+        phrase = " ".join(phrase_tokens)
+        score = self.analyzer.polarity_scores(phrase)["compound"]
+        score *= compute_intensity_modifier(token, self.INTENSIFIERS, self.DIMINISHERS)
+        score = average_conjunct_sentiments(token, self.analyzer)
+        if check_negation and has_phrase_negation(token):
+            score = -score * 0.8
+        return score
 
     def analyze(self, text: str) -> List[AspectSentiment]:
         doc = self.nlp(text)
-        aspect_sentiments = []
+        aspect_dict = {}
+        seen_aspects = set()
 
+        # Step 1: aspect extraction
         for chunk in doc.noun_chunks:
-            aspect = chunk.text
-            sentiments = []
+            if chunk.root.pos_ == "PRON":
+                continue
+            aspect_candidate = chunk.root.text
+            for c in _split_candidates(_normalize_candidate(aspect_candidate)):
+                if _is_valid_candidate(c, self.nlp) and c.lower() not in self.PRONOUNS_TO_SKIP:
+                    if c.lower() not in seen_aspects:
+                        seen_aspects.add(c.lower())
+                        span = (chunk.start_char, chunk.end_char)
+                        get_or_create_aspect(aspect_dict, c, span)
 
-            #chunk.root is the main noun of the noun phrase and .childen are the related to this noun.
+        # Step 2: adjective modifiers
+        for chunk in doc.noun_chunks:
+            aspect = find_aspect_root(chunk)
+            if aspect in self.PRONOUNS_TO_SKIP:
+                continue
             for child in chunk.root.children:
-                # it check if the related words is adjectival modifier (amod) and it's adjective (adj)
                 if child.dep_ == "amod" and child.pos_ == "ADJ":
-                    # so here we check if we have aby adverbial modifiers("advmod", like "very")
-                    phrase_tokens = [t.text for t in child.lefts if t.dep_ == "advmod"] + [child.text]
-                    phrase = " ".join(phrase_tokens)
-                    # here we use VADER to get a score (from -1 to 1)
-                    score = self.analyzer.polarity_scores(phrase)["compound"]
-                    # here if we have negation then it will make the score opposite
-                    if self.has_negation(child):
-                        score = -score
-                    sentiments.append(score)
+                    score = self.get_sentiment_score(child)
+                    span = (chunk.start_char, chunk.end_char)
+                    get_or_create_aspect(aspect_dict, aspect, span)
+                    aspect_dict[aspect]["scores"].append(score)
 
-            for token in doc:
-                # check if the token is adjective or adjectival complement(acomp) example - food is good, good is acomp here. "is" is head here
-                if token.pos_ == "ADJ" and token.dep_ == "acomp":
-                    head = token.head # head is a linking verb
-                    for child in head.children:
-                        # nsubj is subject
-                        if child.dep_ == "nsubj" and child.lemma_.lower() in chunk.lemma_.lower():
-                            phrase_tokens = [t.text for t in token.lefts if t.dep_ == "advmod"] + [token.text]
-                            phrase = " ".join(phrase_tokens)
-                            score = self.analyzer.polarity_scores(phrase)["compound"]
-                            if self.has_negation(token) or self.has_negation(head):
-                                score = -score
-                            sentiments.append(score)
+        # Step 3: adjective complements
+        for token in doc:
+            if token.pos_ == "ADJ" and token.dep_ in {"acomp", "attr"}:
+                head = token.head
+                for subj in [t for t in head.children if t.dep_ in {"nsubj", "nsubjpass"}]:
+                    for chunk in doc.noun_chunks:
+                        if subj in chunk:
+                            aspect = find_aspect_root(chunk)
+                            if aspect in self.PRONOUNS_TO_SKIP:
+                                continue
+                            score = self.get_sentiment_score(token, check_negation=False)
+                            if has_phrase_negation(head):
+                                score = -score * 0.8
+                            span = (chunk.start_char, chunk.end_char)
+                            get_or_create_aspect(aspect_dict, aspect, span)
+                            aspect_dict[aspect]["scores"].append(score)
 
-            avg_score = sum(sentiments) / len(sentiments) if sentiments else 0
-            sentiment_label = self.convert_score_to_label(avg_score)
-            confidence = abs(avg_score)
+        # ✅ Step 4: sentiment verbs + conjuncts
+        for token in doc:
+            if token.pos_ == "VERB" and token.lemma_ not in {"be", "have", "do"}:
+                # collect conjuncts like "enjoyed" in "loved and enjoyed"
+                verb_group = [token] + [t for t in token.conjuncts if t.pos_ == "VERB"]
+                for verb in verb_group:
+                    verb_score = self.analyzer.polarity_scores(verb.text)["compound"]
+                    if abs(verb_score) > 0.1:
+                        for child in verb.children:
+                            if child.dep_ in {"dobj", "pobj", "nsubj"}:
+                                for chunk in doc.noun_chunks:
+                                    if child in chunk:
+                                        aspect = find_aspect_root(chunk)
+                                        if aspect in self.PRONOUNS_TO_SKIP:
+                                            continue
+                                        score = verb_score
+                                        if has_phrase_negation(verb):
+                                            score = -score * 0.8
+                                        span = (chunk.start_char, chunk.end_char)
+                                        get_or_create_aspect(aspect_dict, aspect, span)
+                                        aspect_dict[aspect]["scores"].append(score)
 
+        # Step 5: aggregate
+        aspect_sentiments = []
+        for aspect_text, data in aspect_dict.items():
+            if not data["scores"]:
+                continue
+            sentiment_label, confidence = aggregate_sentiment_scores(data["scores"])
             aspect_sentiments.append(
                 AspectSentiment(
-                    aspect=aspect,
+                    aspect=aspect_text,
                     sentiment=sentiment_label,
                     confidence=confidence,
-                    text_span=(chunk.start_char, chunk.end_char)
+                    text_span=data["text_span"]
                 )
             )
 
         return aspect_sentiments
-
-if __name__ == "__main__":
-    analyzer = LexiconABSA()
-    text = "The pasta was perfectly cooked, but the service was not good."
-    results = analyzer.analyze(text)
-    for res in results:
-        print(f"Aspect: '{res.aspect}', Sentiment: {res.sentiment}, Confidence: {res.confidence:.2f}, Span: {res.text_span}") # the confidence is okay for this one
