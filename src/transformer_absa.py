@@ -1,4 +1,4 @@
-# transformer_absa.py - Implementation 2 corrected (head noun only)
+# Implementation 2
 
 from typing import List
 import re
@@ -45,14 +45,6 @@ def _normalize_candidate(text: str) -> str:
 
 
 class TransformerABSA(ABSAAnalyzer):
-    """
-    Transformer-based ABSA:
-    - Extracts candidate aspects using spaCy noun chunks (head noun only).
-    - Removes leading determiners from candidates.
-    - Splits candidates on slashes, &, commas, "and".
-    - Runs ABSA model per candidate.
-    - Deduplicates and merges only truly adjacent aspects of the same sentiment.
-    """
 
     def __init__(self, model_name: str = "yangheng/deberta-v3-base-absa-v1.1", confidence_threshold: float = 0.55):
         self.nlp = spacy.load("en_core_web_sm")
@@ -73,7 +65,6 @@ class TransformerABSA(ABSAAnalyzer):
                 if _is_valid_candidate(c, self.nlp):
                     candidates.append(c)
 
-        # Deduplicate candidates
         seen = set()
         deduped = []
         for c in candidates:

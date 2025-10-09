@@ -1,3 +1,4 @@
+# Implementation 1
 from typing import List
 import spacy
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
@@ -49,7 +50,7 @@ class LexiconABSA(ABSAAnalyzer):
         score *= compute_intensity_modifier(token, self.INTENSIFIERS, self.DIMINISHERS)
         score = average_conjunct_sentiments(token, self.analyzer)
         if check_negation and has_phrase_negation(token):
-            score = -score * 0.8
+            score = -score
         return score
 
     def analyze(self, text: str) -> List[AspectSentiment]:
@@ -57,7 +58,6 @@ class LexiconABSA(ABSAAnalyzer):
         aspect_dict = {}
         seen_aspects = set()
 
-        # Step 1: aspect extraction
         for chunk in doc.noun_chunks:
             if chunk.root.pos_ == "PRON":
                 continue
@@ -69,7 +69,6 @@ class LexiconABSA(ABSAAnalyzer):
                         span = (chunk.start_char, chunk.end_char)
                         get_or_create_aspect(aspect_dict, c, span)
 
-        # Step 2: adjective modifiers
         for chunk in doc.noun_chunks:
             aspect = find_aspect_root(chunk)
             if aspect in self.PRONOUNS_TO_SKIP:
@@ -81,7 +80,6 @@ class LexiconABSA(ABSAAnalyzer):
                     get_or_create_aspect(aspect_dict, aspect, span)
                     aspect_dict[aspect]["scores"].append(score)
 
-        # Step 3: adjective complements
         for token in doc:
             if token.pos_ == "ADJ" and token.dep_ in {"acomp", "attr"}:
                 head = token.head
@@ -98,7 +96,6 @@ class LexiconABSA(ABSAAnalyzer):
                             get_or_create_aspect(aspect_dict, aspect, span)
                             aspect_dict[aspect]["scores"].append(score)
 
-        # ✅ Step 4: sentiment verbs + conjuncts
         for token in doc:
             if token.pos_ == "VERB" and token.lemma_ not in {"be", "have", "do"}:
                 # collect conjuncts like "enjoyed" in "loved and enjoyed"
@@ -120,7 +117,6 @@ class LexiconABSA(ABSAAnalyzer):
                                         get_or_create_aspect(aspect_dict, aspect, span)
                                         aspect_dict[aspect]["scores"].append(score)
 
-        # Step 5: aggregate
         aspect_sentiments = []
         for aspect_text, data in aspect_dict.items():
             if not data["scores"]:
