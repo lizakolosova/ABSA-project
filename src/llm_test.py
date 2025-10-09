@@ -1,4 +1,3 @@
-# run_llm_test.py
 from src.llm_absa import LLMABSA
 
 if __name__ == "__main__":
