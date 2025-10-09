@@ -4,14 +4,12 @@ import pytest
 from src.transformer_absa import TransformerABSA
 from src.lexicon_absa import LexiconABSA
 
-# Load datasets
 with open("../data/test_samples.json", "r", encoding="utf-8") as f:
     REVIEWS = json.load(f)
 
 with open("../data/evaluation_data.json", "r", encoding="utf-8") as f:
     EVAL_DATA = json.load(f)
 
-# Initialize both models
 transformer_absa = TransformerABSA(confidence_threshold=0.0)
 lexicon_absa = LexiconABSA()
 
