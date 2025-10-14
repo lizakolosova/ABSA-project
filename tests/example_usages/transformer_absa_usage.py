@@ -2,7 +2,7 @@ from src.transformer_absa import TransformerABSA
 
 analyzer = TransformerABSA()
 
-text = "The pizza was delicious but the service was slow."
+text = "The hotel room was nice but the breakfast was disappointing."
 
 # Extract aspects only
 aspects = analyzer.extract_aspects(text)

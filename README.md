@@ -27,8 +27,8 @@ Works well with complex text and can provide context-aware, explainable sentimen
 ##### cd data_6_llm_project
 ##### pip install -r requirements.txt
 ##### python -m spacy download en_core_web_trf
-
-(Khaled check if you need tgo install something for ollama)
+##### pip install ollama
+##### ollama pull llama3
 
 ## Usage Examples
 **You can find and run it in tests/example_usages**
@@ -93,7 +93,8 @@ if __name__ == "__main__":
     for r in results:
         print(r)
 ```
-_(Put the output here Khaled)_
+_AspectSentiment(aspect='screen', sentiment='positive', confidence=0.95, text_span=(8, 12))
+AspectSentiment(aspect='battery life', sentiment='negative', confidence=0.93, text_span=(17, 29))_
 
 ## Design decisions and rationale
 ### Lexicon-based:
@@ -110,7 +111,10 @@ Extracted aspect tokens are also normalized and validated
 Supports both CPU and GPU inference transparently(I have CPU but maybe someone has GPU who knows)
 Can easily switch pretrained models or update the label mapping to support new languages, domains, or sentiment categories.
 ### LLM-based:
-(Khaled write something here)
+Uses Local llama3 large language model accessed via Ollama to perform aspect extraction and sentiment classification in one step.
+It can handle complex and nuanced text better than rule-based or transformer-only approaches, providing context-aware and explainable results. 
+However, it requires significant computational resources and longer inference times, which can limit its practicality for real-time applications. 
+This approach benefits from easy adaptability to new domains or languages through prompt adjustments rather than retraining.
 ### API design:
 ABSAAnalyzer: Abstract base class that specifies the analyze(text: str) method, returning a list of AspectSentiment.
 AspectSentiment: Standardized data class containing the aspect, sentiment, confidence score, and text span.
