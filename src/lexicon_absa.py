@@ -1,10 +1,10 @@
 # Implementation 1
-from typing import List
+
+from typing import List, Tuple
 import spacy
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-
-from src.base import ABSAAnalyzer, AspectSentiment
-from src.utils import (
+from .base import ABSAAnalyzer, AspectSentiment
+from .utils import (
     find_aspect_root,
     get_or_create_aspect,
     compute_intensity_modifier,
@@ -17,13 +17,29 @@ from src.utils import (
 
 DETERMINERS = {"this", "that", "these", "those", "a", "an", "the"}
 
+
 def _normalize_candidate(text: str) -> str:
+    """
+    Normalize a candidate aspect by removing leading determiners.
+
+    Args:
+        text (str): The candidate aspect text.
+
+    Returns:
+        str: Normalized candidate aspect.
+    """
     words = text.strip().split()
     while words and words[0].lower() in DETERMINERS:
         words.pop(0)
     return " ".join(words)
 
+
 class LexiconABSA(ABSAAnalyzer):
+    """
+    Rule-based Aspect-Based Sentiment Analyzer using lexicon methods
+    and VADER sentiment scoring.
+    """
+
     PRONOUNS_TO_SKIP = {"which", "that", "this", "it", "they", "he", "she", "we", "you"}
 
     INTENSIFIERS = {
@@ -40,24 +56,49 @@ class LexiconABSA(ABSAAnalyzer):
     }
 
     def __init__(self):
+        """
+        Initialize the LexiconABSA analyzer by loading SpaCy NLP pipeline
+        and the VADER sentiment analyzer.
+        """
         self.nlp = spacy.load("en_core_web_trf")
         self.analyzer = SentimentIntensityAnalyzer()
 
     def get_sentiment_score(self, token, check_negation: bool = True) -> float:
+        """
+        Compute the sentiment score of a token considering modifiers and negation.
+
+        Args:
+            token: spaCy token to evaluate.
+            check_negation (bool): Whether to check for negation.
+
+        Returns:
+            float: Sentiment score in range [-1, 1].
+        """
         phrase_tokens = [t.text for t in token.lefts if t.dep_ == "advmod"] + [token.text]
         phrase = " ".join(phrase_tokens)
         score = self.analyzer.polarity_scores(phrase)["compound"]
         score *= compute_intensity_modifier(token, self.INTENSIFIERS, self.DIMINISHERS)
         score = average_conjunct_sentiments(token, self.analyzer)
+
         if check_negation and has_phrase_negation(token):
             score = -score
         return score
 
     def analyze(self, text: str) -> List[AspectSentiment]:
+        """
+        Perform aspect extraction and sentiment scoring on input text.
+
+        Args:
+            text (str): Input text to analyze.
+
+        Returns:
+            List[AspectSentiment]: List of aspects with sentiment and confidence.
+        """
         doc = self.nlp(text)
         aspect_dict = {}
         seen_aspects = set()
 
+        # Step 1: Extract candidate aspects from noun chunks
         for chunk in doc.noun_chunks:
             if chunk.root.pos_ == "PRON":
                 continue
@@ -69,6 +110,7 @@ class LexiconABSA(ABSAAnalyzer):
                         span = (chunk.start_char, chunk.end_char)
                         get_or_create_aspect(aspect_dict, c, span)
 
+        # Step 2: Score adjectives modifying aspects
         for chunk in doc.noun_chunks:
             aspect = find_aspect_root(chunk)
             if aspect in self.PRONOUNS_TO_SKIP:
@@ -80,6 +122,7 @@ class LexiconABSA(ABSAAnalyzer):
                     get_or_create_aspect(aspect_dict, aspect, span)
                     aspect_dict[aspect]["scores"].append(score)
 
+        # Step 3: Score standalone adjectives
         for token in doc:
             if token.pos_ == "ADJ" and token.dep_ in {"acomp", "attr"}:
                 head = token.head
@@ -96,9 +139,9 @@ class LexiconABSA(ABSAAnalyzer):
                             get_or_create_aspect(aspect_dict, aspect, span)
                             aspect_dict[aspect]["scores"].append(score)
 
+        # Step 4: Score verbs related to aspects
         for token in doc:
             if token.pos_ == "VERB" and token.lemma_ not in {"be", "have", "do"}:
-                # collect conjuncts like "enjoyed" in "loved and enjoyed"
                 verb_group = [token] + [t for t in token.conjuncts if t.pos_ == "VERB"]
                 for verb in verb_group:
                     verb_score = self.analyzer.polarity_scores(verb.text)["compound"]
@@ -117,7 +160,8 @@ class LexiconABSA(ABSAAnalyzer):
                                         get_or_create_aspect(aspect_dict, aspect, span)
                                         aspect_dict[aspect]["scores"].append(score)
 
-        aspect_sentiments = []
+        # Step 5: Aggregate sentiment scores per aspect
+        aspect_sentiments: List[AspectSentiment] = []
         for aspect_text, data in aspect_dict.items():
             if not data["scores"]:
                 continue

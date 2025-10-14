@@ -10,3 +10,6 @@ ollama~=0.6.0
 spacy~=3.8.7
 vaderSentiment~=3.3.2
 transformers~=4.57.0
+pyabsa~=2.4.2
+pytest~=8.4.2
+torch~=2.8.0
