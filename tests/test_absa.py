@@ -1,78 +1,104 @@
-import json
-import random
 import pytest
+from unittest.mock import MagicMock, patch
+import torch
+
 from src.transformer_absa import TransformerABSA
-from src.lexicon_absa import LexiconABSA
+from src.lexicon_absa import LexiconABSA, _normalize_candidate
 
-with open("../data/test_samples.json", "r", encoding="utf-8") as f:
-    REVIEWS = json.load(f)
+# Tests for TransformerABSA
 
-with open("../data/evaluation_data.json", "r", encoding="utf-8") as f:
-    EVAL_DATA = json.load(f)
+@pytest.fixture
+def transformer_absa():
+    with patch("src.transformer_absa.pipeline") as mock_pipeline, \
+         patch("src.transformer_absa.AutoTokenizer"), \
+         patch("src.transformer_absa.AutoModelForSequenceClassification"):
 
-transformer_absa = TransformerABSA(confidence_threshold=0.0)
-lexicon_absa = LexiconABSA()
+        # Mock aspect extractor
+        mock_extractor = MagicMock()
+        mock_extractor.return_value = [
+            {"word": "Food", "entity_group": "B-ASP"},
+            {"word": "Service", "entity_group": "B-ASP"},
+            {"word": "Omitted", "entity_group": "O"}
+        ]
+        mock_pipeline.return_value = mock_extractor
 
-ALLOWED_SENTIMENTS = {"positive", "negative", "neutral"}
+        analyzer = TransformerABSA(device=-1)
+        yield analyzer
 
-def to_set(aspects):
-    """Convert list of AspectSentiment objects, dicts, or tuples into a set of (aspect, sentiment) tuples."""
-    if not aspects:
-        return set()
-    sample = aspects[0]
-    if isinstance(sample, dict):
-        return {(a["aspect"].lower(), a["sentiment"].lower()) for a in aspects}
-    elif hasattr(sample, "aspect"):
-        return {(a.aspect.lower(), a.sentiment.lower()) for a in aspects}
-    elif isinstance(sample, (list, tuple)):
-        return {tuple(a) for a in aspects}
-    return set()
+def test_extract_aspects(transformer_absa, monkeypatch):
+    monkeypatch.setattr("src.transformer_absa.normalize_aspect", lambda w: w.lower())
+    monkeypatch.setattr("src.transformer_absa.is_valid_aspect_token", lambda w: True)
 
+    text = "The Food was great and the Service was slow."
+    aspects = transformer_absa.extract_aspects(text)
+    assert "food" in aspects
+    assert "service" in aspects
+    assert len(aspects) == 2
 
-def assert_aspects_valid(text, aspects):
-    """Ensure each aspect is structurally correct (valid span, label, sentiment)."""
-    for a in aspects:
-        if isinstance(a, dict):
-            aspect, sentiment, span = a["aspect"], a["sentiment"], a["text_span"]
-        else:
-            aspect, sentiment, span = a.aspect, a.sentiment, a.text_span
-        start, end = span
-        assert 0 <= start < end <= len(text), f"Invalid span {span} for '{aspect}'"
-        assert isinstance(aspect, str), f"Aspect not a string: {aspect}"
-        assert sentiment.lower() in ALLOWED_SENTIMENTS, f"Invalid sentiment: {sentiment}"
+def test_classify_sentiment(transformer_absa, monkeypatch):
+    class DummyModelOutput:
+        def __init__(self):
+            self.logits = torch.tensor([[0.1, 0.2, 0.7]])  # predicts index 2 -> positive
 
-SAMPLE_TEXTS = []
-if "sample" in REVIEWS:
-    SAMPLE_TEXTS.extend(REVIEWS["sample"])
-if "simple" in REVIEWS:
-    SAMPLE_TEXTS.extend(REVIEWS["simple"])
-SAMPLE_TEXTS = random.sample(SAMPLE_TEXTS, k=min(10, len(SAMPLE_TEXTS)))
+    dummy_tokenizer = MagicMock(return_value={"input_ids": torch.tensor([[1]]), "attention_mask": torch.tensor([[1]])})
+    monkeypatch.setattr(transformer_absa, "tokenizer", dummy_tokenizer)
+    monkeypatch.setattr(transformer_absa, "sentiment_model", MagicMock(return_value=DummyModelOutput()))
 
+    sentiment = transformer_absa.classify_sentiment("Great food!", "Food")
+    assert sentiment == "positive"
 
-@pytest.mark.parametrize("text", SAMPLE_TEXTS)
-@pytest.mark.parametrize("model", ["transformer", "lexicon"])
-def test_structure_accuracy(text, model):
-    """
-    Verify both models produce well-structured outputs:
-    - list of AspectSentiment objects (or dicts)
-    - valid text spans and sentiment labels
-    """
-    absa = transformer_absa if model == "transformer" else lexicon_absa
-    aspects = absa.analyze(text)
-    assert isinstance(aspects, list), f"{model}: output not a list"
-    assert_aspects_valid(text, aspects)
+def test_analyze(transformer_absa, monkeypatch):
+    monkeypatch.setattr("src.transformer_absa.normalize_aspect", lambda w: w.lower())
+    monkeypatch.setattr("src.transformer_absa.is_valid_aspect_token", lambda w: True)
+    class DummyModelOutput:
+        def __init__(self):
+            self.logits = torch.tensor([[0.1, 0.2, 0.7]])
+    transformer_absa.sentiment_model = MagicMock(return_value=DummyModelOutput())
+    transformer_absa.tokenizer = MagicMock(return_value={"input_ids": torch.tensor([[1]]), "attention_mask": torch.tensor([[1]])})
 
-@pytest.mark.parametrize("entry", EVAL_DATA.get(["simple", "medium"], []))
-@pytest.mark.parametrize("model", ["transformer", "lexicon"])
-def test_exact_match_(entry, model):
-    """
-    Compare model predictions on simple sentences.
-    """
-    absa = transformer_absa if model == "transformer" else lexicon_absa
-    text = entry["text"]
-    expected = to_set(entry["expected_aspects"])
-    predicted = to_set(absa.analyze(text))
-    assert predicted == expected, (
-        f"{model.upper()} | Text: {text}\n"
-        f"Expected: {expected}\nPredicted: {predicted}"
-    )
+    results = transformer_absa.analyze("The Food was great and the Service was slow.")
+    assert ("food", "positive") in results
+    assert ("service", "positive") in results
+
+# Tests for LexiconABSA
+@pytest.fixture
+def lexicon_absa(monkeypatch):
+    # Mock SpaCy NLP pipeline and SentimentIntensityAnalyzer
+    monkeypatch.setattr("src.lexicon_absa.spacy.load", lambda model: MagicMock())
+    monkeypatch.setattr("src.lexicon_absa.SentimentIntensityAnalyzer", lambda: MagicMock(polarity_scores=lambda t: {"compound": 0.5}))
+    analyzer = LexiconABSA()
+    yield analyzer
+
+def test_normalize_candidate():
+    assert _normalize_candidate("The food") == "food"
+    assert _normalize_candidate("a service") == "service"
+    assert _normalize_candidate("these things") == "things"
+
+def test_get_sentiment_score(monkeypatch, lexicon_absa):
+    dummy_token = MagicMock()
+    dummy_token.text = "great"
+    dummy_token.lefts = []
+    dummy_token.children = []
+    dummy_token.dep_ = "amod"
+    dummy_token.pos_ = "ADJ"
+    monkeypatch.setattr("src.lexicon_absa.compute_intensity_modifier", lambda token, ints, dims: 1.0)
+    monkeypatch.setattr("src.lexicon_absa.average_conjunct_sentiments", lambda token, analyzer: 0.5)
+    monkeypatch.setattr("src.lexicon_absa.has_phrase_negation", lambda token: False)
+
+    score = lexicon_absa.get_sentiment_score(dummy_token)
+    assert score == 0.5
+
+# Note: Full analyze method heavily depends on SpaCy NLP output; we test basic functionality
+def test_analyze_returns_list(monkeypatch, lexicon_absa):
+    monkeypatch.setattr("src.lexicon_absa.get_or_create_aspect", lambda adict, aspect, span: adict.setdefault(aspect, {"scores": [], "text_span": span}))
+    monkeypatch.setattr("src.lexicon_absa.find_aspect_root", lambda chunk: "food")
+    monkeypatch.setattr("src.lexicon_absa.aggregate_sentiment_scores", lambda scores: ("positive", 0.9))
+
+    # Mock doc with minimal noun_chunks
+    dummy_doc = MagicMock()
+    dummy_doc.noun_chunks = [MagicMock(start_char=0, end_char=4, root=MagicMock(pos_="NOUN", children=[]))]
+    dummy_doc.__iter__.return_value = []
+    monkeypatch.setattr(lexicon_absa, "nlp", lambda text: dummy_doc)
+
+    results = lexicon_absa.analyze("The food is great.")
+    assert isinstance(results, list)

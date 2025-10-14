@@ -1,112 +1,119 @@
-# Implementation 2
-
-from typing import List
-import re
-import spacy
-from transformers import pipeline
-from src.base import ABSAAnalyzer, AspectSentiment
-from src.utils import _split_candidates, _is_valid_candidate
-
-PRONOUNS = {"i", "you", "he", "she", "it", "they", "we", "me", "him", "her", "them", "us"}
-TEMPORAL_WORDS = {
-    "while", "minute", "minutes", "hour", "hours", "day", "days", "week", "weeks",
-    "month", "months", "year", "years", "morning", "evening", "afternoon",
-    "yesterday", "today", "tomorrow", "holiday", "weekend"
-}
-
-DETERMINERS = {"this", "that", "these", "those", "a", "an", "the"}
+from typing import List, Tuple, Union
+import torch
+from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
+from .utils import normalize_aspect, is_valid_aspect_token
 
 
-def _merge_adjacent_aspects(aspects: List[AspectSentiment]) -> List[AspectSentiment]:
-    if not aspects:
-        return []
-    aspects.sort(key=lambda a: a.text_span[0])
-    merged = [aspects[0]]
-    for cur in aspects[1:]:
-        last = merged[-1]
-        if cur.sentiment == last.sentiment and cur.text_span[0] <= last.text_span[1] + 1:
-            merged[-1] = AspectSentiment(
-                aspect=f"{last.aspect} {cur.aspect}",
-                sentiment=last.sentiment,
-                confidence=max(last.confidence, cur.confidence),
-                text_span=(last.text_span[0], cur.text_span[1])
-            )
-        else:
-            merged.append(cur)
-    return merged
+class TransformerABSA:
+    """
+    Aspect-Based Sentiment Analyzer using transformer models.
 
+    This class performs:
+        1. Aspect extraction using a token-classification transformer.
+        2. Sentiment classification for each extracted aspect using a sequence classification transformer.
 
-def _normalize_candidate(text: str) -> str:
-    """Remove leading determiners like 'the', 'a', 'an', 'this', 'that'"""
-    words = text.strip().split()
-    while words and words[0].lower() in DETERMINERS:
-        words.pop(0)
-    return " ".join(words)
+    Attributes:
+        aspect_extractor: Hugging Face pipeline for aspect extraction.
+        tokenizer: Tokenizer for sentiment classification model.
+        sentiment_model: Transformer model for sentiment classification.
+        device: Torch device ("cpu" or GPU index).
+        label_map: Mapping of model outputs to sentiment labels.
+    """
 
+    def __init__(
+        self,
+        aspect_model_name: str = "gauneg/roberta-base-absa-ate-sentiment",
+        sentiment_model_name: str = "yangheng/deberta-v3-base-absa-v1.1",
+        device: int = -1,
+    ):
+        """
+        Initialize TransformerABSA with specified models and device.
 
-class TransformerABSA(ABSAAnalyzer):
+        Args:
+            aspect_model_name (str): Pretrained model for aspect extraction.
+            sentiment_model_name (str): Pretrained model for sentiment classification.
+            device (int): Torch device index. -1 for CPU, >=0 for GPU.
+        """
+        self.device = device if device >= 0 else "cpu"
 
-    def __init__(self, model_name: str = "yangheng/deberta-v3-base-absa-v1.1", confidence_threshold: float = 0.55):
-        self.nlp = spacy.load("en_core_web_sm")
-        self.absa_pipeline = pipeline("text-classification", model=model_name)
-        self.conf_threshold = confidence_threshold
+        # Initialize aspect extraction pipeline
+        self.aspect_extractor = pipeline(
+            task="token-classification",
+            model=aspect_model_name,
+            aggregation_strategy="simple",
+            device=device
+        )
 
-    def analyze(self, text: str) -> List[AspectSentiment]:
-        doc = self.nlp(text)
-        candidates = []
+        # Load sentiment classification model and tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(sentiment_model_name)
+        self.sentiment_model = AutoModelForSequenceClassification.from_pretrained(sentiment_model_name)
+        self.sentiment_model.eval()
 
-        # Extract noun chunks (head noun only)
-        for chunk in doc.noun_chunks:
-            if chunk.root.pos_ == "PRON":
-                continue
-            chunk_text = chunk.root.text  # only the head noun
-            for c in _split_candidates(chunk_text):
-                c = _normalize_candidate(c)
-                if _is_valid_candidate(c, self.nlp):
-                    candidates.append(c)
+        if device >= 0 and torch.cuda.is_available():
+            self.sentiment_model.to(device)
 
-        seen = set()
-        deduped = []
-        for c in candidates:
-            key = c.lower()
-            if key not in seen:
-                seen.add(key)
-                deduped.append(c)
+        # Map model logits to sentiment labels
+        self.label_map: List[str] = ["negative", "neutral", "positive"]
 
-        # Run ABSA pipeline
-        aspects = []
-        for cand in deduped:
-            input_text = f"{text} [ASP] {cand}"
-            try:
-                pred = self.absa_pipeline(input_text)[0]
-            except Exception:
-                continue
+    def extract_aspects(self, text: str) -> List[str]:
+        """
+        Extract aspect terms from text using the transformer aspect extractor.
 
-            score = float(pred.get("score", 0.0))
-            label = str(pred.get("label", "")).lower()
-            if score < self.conf_threshold:
-                continue
+        Args:
+            text (str): Input text.
 
-            sentiment = "neutral"
-            if "pos" in label:
-                sentiment = "positive"
-            elif "neg" in label:
-                sentiment = "negative"
+        Returns:
+            List[str]: List of normalized aspect terms.
+        """
+        results = self.aspect_extractor(text)
+        aspects: List[str] = []
 
-            m = re.search(re.escape(cand), text, flags=re.IGNORECASE)
-            if m:
-                start, end = m.start(), m.end()
-            else:
-                start = text.lower().find(cand.lower())
-                end = start + len(cand)
+        for r in results:
+            word = r["word"].strip()
+            if r["entity_group"] != "O" and is_valid_aspect_token(word):
+                aspects.append(normalize_aspect(word))
 
-            aspects.append(
-                AspectSentiment(
-                    aspect=cand,
-                    sentiment=sentiment,
-                    confidence=score,
-                    text_span=(start, end)
-                )
-            )
+        return aspects
 
-        return _merge_adjacent_aspects(aspects)
+    def classify_sentiment(self, text: str, aspect: str) -> str:
+        """
+        Classify sentiment for a specific aspect in the text.
+
+        Args:
+            text (str): Input text.
+            aspect (str): Aspect term to classify sentiment for.
+
+        Returns:
+            str: Sentiment label ("negative", "neutral", or "positive").
+        """
+        # Encode text and aspect for the sentiment model
+        inputs = self.tokenizer(f"[CLS] {text} [SEP] {aspect} [SEP]", return_tensors="pt")
+
+        # Move tensors to device if using GPU
+        if self.device != "cpu":
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+
+        with torch.no_grad():
+            logits = self.sentiment_model(**inputs).logits
+            pred_index = torch.argmax(logits, dim=1).item()
+
+        return self.label_map[pred_index]
+
+    def analyze(self, text: str) -> List[Tuple[str, str]]:
+        """
+        Perform end-to-end ABSA analysis: extract aspects and classify sentiment.
+
+        Args:
+            text (str): Input text.
+
+        Returns:
+            List[Tuple[str, str]]: List of tuples (aspect, sentiment).
+        """
+        aspects = self.extract_aspects(text)
+        results: List[Tuple[str, str]] = []
+
+        for aspect in aspects:
+            sentiment = self.classify_sentiment(text, aspect)
+            results.append((aspect, sentiment))
+
+        return results

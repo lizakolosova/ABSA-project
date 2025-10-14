@@ -2,6 +2,7 @@
 from typing import Dict, Tuple, List
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import re
+import string
 
 PRONOUNS = {"i", "you", "he", "she", "it", "they", "we", "me", "him", "her", "them", "us"}
 TEMPORAL_WORDS = {
@@ -46,11 +47,11 @@ Now analyze this text:
 
 def convert_score_to_label(score: float) -> str:
     if score >= 0.05:
-        return "POSITIVE"
+        return "positive"
     elif score <= -0.05:
-        return "NEGATIVE"
+        return "negative"
     else:
-        return "NEUTRAL"
+        return "neutral"
 
 
 def has_phrase_negation(token):
@@ -136,4 +137,10 @@ def _split_candidates(raw: str) -> List[str]:
             final_parts.append(p)
 
         return final_parts
+
+def normalize_aspect(aspect: str) -> str:
+    return aspect.lower().strip()
+
+def is_valid_aspect_token(token: str) -> bool:
+    return token.strip() and token not in string.punctuation
 
