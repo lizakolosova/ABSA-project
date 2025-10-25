@@ -1,12 +1,12 @@
-from typing import List, Tuple
+from typing import List
 import torch
 from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
 
-from .base import AspectSentiment
+from .base import AspectSentiment, ABSAAnalyzer
 from .utils import normalize_aspect, is_valid_aspect_token
 
 
-class TransformerABSA:
+class TransformerABSA(ABSAAnalyzer):
     """
     Aspect-Based Sentiment Analyzer using transformer models.
 
