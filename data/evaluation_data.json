@@ -1,0 +1,449 @@
+[
+  {
+    "text": "Wow... Loved this place.",
+    "aspects": [
+      {"aspect": "place", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Crust is not good.",
+    "aspects": [
+      {"aspect": "crust", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "Highly recommended this restaurant.",
+    "aspects": [
+      {"aspect": "restaurant", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Poor service, the waiter made me feel like I was stupid every time he came to the table.",
+    "aspects": [
+      {"aspect": "service", "sentiment": "negative"},
+      {"aspect": "waiter", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "Service sucks.",
+    "aspects": [
+      {"aspect": "service", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "Loved it...friendly servers, great food, wonderful and imaginative menu.",
+    "aspects": [
+      {"aspect": "servers", "sentiment": "positive"},
+      {"aspect": "food", "sentiment": "positive"},
+      {"aspect": "menu", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "The burger is good beef, cooked just right.",
+    "aspects": [
+      {"aspect": "burger", "sentiment": "positive"},
+      {"aspect": "beef", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Avoid this restaurant at all cost!",
+    "aspects": [
+      {"aspect": "restaurant", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "Good prices.",
+    "aspects": [
+      {"aspect": "prices", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "The food was not good.",
+    "aspects": [
+      {"aspect": "food", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "DELICIOUS FOOD!!",
+    "aspects": [
+      {"aspect": "food", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Great brunch spot.",
+    "aspects": [
+      {"aspect": "brunch", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Worst service to boot, but that is the least of their worries.",
+    "aspects": [
+      {"aspect": "service", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "Fantastic food!",
+    "aspects": [
+      {"aspect": "food", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "I LOVED this restaurant!",
+    "aspects": [
+      {"aspect": "restaurant", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Great food and service, huge portions and they give a military discount.",
+    "aspects": [
+      {"aspect": "food", "sentiment": "positive"},
+      {"aspect": "service", "sentiment": "positive"},
+      {"aspect": "portions", "sentiment": "positive"},
+      {"aspect": "discount", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Terrible management.",
+    "aspects": [
+      {"aspect": "management", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "Delicious food and I will absolutely be back!",
+    "aspects": [
+      {"aspect": "food", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Pretty good beer selection too.",
+    "aspects": [
+      {"aspect": "beer selection", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "I loved the bacon wrapped dates.",
+    "aspects": [
+      {"aspect": "bacon wrapped dates", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Very bad experience!",
+    "aspects": [
+      {"aspect": "experience", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "Great atmosphere, friendly and fast service.",
+    "aspects": [
+      {"aspect": "atmosphere", "sentiment": "positive"},
+      {"aspect": "service", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Great place for take out or eat in.",
+    "aspects": [
+      {"aspect": "place", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "The food was terrible.",
+    "aspects": [
+      {"aspect": "food", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "I love the owner!",
+    "aspects": [
+      {"aspect": "owner", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Very disappointing!!!",
+    "aspects": [
+      {"aspect": "experience", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "Good food , good service .",
+    "aspects": [
+      {"aspect": "food", "sentiment": "positive"},
+      {"aspect": "service", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Damn good steak.",
+    "aspects": [
+      {"aspect": "steak", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Awful service.",
+    "aspects": [
+      {"aspect": "service", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "Excellent service and food.",
+    "aspects": [
+      {"aspect": "service", "sentiment": "positive"},
+      {"aspect": "food", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "The selection on the menu was great and so were the prices.",
+    "aspects": [
+      {"aspect": "menu", "sentiment": "positive"},
+      {"aspect": "prices", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Honestly food didn't taste that fresh.",
+    "aspects": [
+      {"aspect": "food", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "Waitress was a little slow in service.",
+    "aspects": [
+      {"aspect": "waitress", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "The only redeeming quality of the restaurant was that it was very inexpensive.",
+    "aspects": [
+      {"aspect": "price", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Ample portions and good prices.",
+    "aspects": [
+      {"aspect": "portions", "sentiment": "positive"},
+      {"aspect": "prices", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "On a positive note, our server was very attentive and provided great service.",
+    "aspects": [
+      {"aspect": "server", "sentiment": "positive"},
+      {"aspect": "service", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "The cocktails are all handmade and delicious.",
+    "aspects": [
+      {"aspect": "cocktails", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "The ambience is wonderful and there is music playing.",
+    "aspects": [
+      {"aspect": "ambience", "sentiment": "positive"},
+      {"aspect": "music", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "REAL sushi lovers, let's be honest - Yama is not that good.",
+    "aspects": [
+      {"aspect": "Yama", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "The salad had just the right amount of sauce to not over power the scallop, which was perfectly cooked.",
+    "aspects": [
+      {"aspect": "salad", "sentiment": "positive"},
+      {"aspect": "sauce", "sentiment": "positive"},
+      {"aspect": "scallop", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "The Heart Attack Grill in downtown Vegas is an absolutely flat-lined excuse for a restaurant.",
+    "aspects": [
+      {"aspect": "restaurant", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "The sweet potato fries were very good and seasoned well.",
+    "aspects": [
+      {"aspect": "sweet potato fries", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "This is a really fantastic Thai restaurant which is definitely worth a visit.",
+    "aspects": [
+      {"aspect": "restaurant", "sentiment": "positive"},
+      {"aspect": "food", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "The management is rude.",
+    "aspects": [
+      {"aspect": "management", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "The service was not good.",
+    "aspects": [
+      {"aspect": "service", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "Pretty cool experience I would say.",
+    "aspects": [
+      {"aspect": "experience", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Great place to relax and have an awesome burger and beer.",
+    "aspects": [
+      {"aspect": "place", "sentiment": "positive"},
+      {"aspect": "burger", "sentiment": "positive"},
+      {"aspect": "beer", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Food was a pale color instead of nice and char and has NO flavor.",
+    "aspects": [
+      {"aspect": "food", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "The service here leaves a lot to be desired.",
+    "aspects": [
+      {"aspect": "service", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "I could eat their bruschetta all day it is devine.",
+    "aspects": [
+      {"aspect": "bruschetta", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "The plantains were the worst I've ever tasted.",
+    "aspects": [
+      {"aspect": "plantains", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "I hate to disagree with my fellow Yelpers, but my husband and I were so disappointed with this place.",
+    "aspects": [
+      {"aspect": "place", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "They have a plethora of salads and sandwiches, and everything I've tried gets my seal of approval.",
+    "aspects": [
+      {"aspect": "salads", "sentiment": "positive"},
+      {"aspect": "sandwiches", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "The atmosphere was great with a lovely duo of violinists playing songs we requested.",
+    "aspects": [
+      {"aspect": "atmosphere", "sentiment": "positive"},
+      {"aspect": "duo of violinists", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "We waited an hour for what was a breakfast I could have done 100 times better at home.",
+    "aspects": [
+      {"aspect": "breakfast", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "An excellent new restaurant by an experienced Frenchman.",
+    "aspects": [
+      {"aspect": "restaurant", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Went for lunch - service was slow.",
+    "aspects": [
+      {"aspect": "service", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "The staff was very attentive.",
+    "aspects": [
+      {"aspect": "staff", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "The seafood was fresh and generous in portion.",
+    "aspects": [
+      {"aspect": "seafood", "sentiment": "positive"},
+      {"aspect": "portion", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "In an interesting part of town, this place is amazing.",
+    "aspects": [
+      {"aspect": "place", "sentiment": "positive"},
+      {"aspect": "location", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Definitely worth venturing off the strip for the pork belly, will return next time I'm in Vegas.",
+    "aspects": [
+      {"aspect": "pork belly", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "The scallop dish is quite appalling for value as well.",
+    "aspects": [
+      {"aspect": "scallop dish", "sentiment": "negative"},
+      {"aspect": "value", "sentiment": "negative"}
+    ]
+  },
+  {
+    "text": "They know how to make their food here.",
+    "aspects": [
+      {"aspect": "food", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Great time - family dinner on a Sunday night.",
+    "aspects": [
+      {"aspect": "dinner", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "The goat taco didn't skimp on the meat and wow what FLAVOR!",
+    "aspects": [
+      {"aspect": "goat taco", "sentiment": "positive"},
+      {"aspect": "meat", "sentiment": "positive"},
+      {"aspect": "flavor", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "The atmosphere here is fun.",
+    "aspects": [
+      {"aspect": "atmosphere", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Great steak, great sides, great wine, amazing desserts.",
+    "aspects": [
+      {"aspect": "steak", "sentiment": "positive"},
+      {"aspect": "sides", "sentiment": "positive"},
+      {"aspect": "wine", "sentiment": "positive"},
+      {"aspect": "desserts", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "The staff is great, the food is delish, and they have an incredible beer selection.",
+    "aspects": [
+      {"aspect": "staff", "sentiment": "positive"},
+      {"aspect": "food", "sentiment": "positive"},
+      {"aspect": "beer selection", "sentiment": "positive"}
+    ]
+  },
+  {
+    "text": "Our server was very nice and attentive as were the other serving staff.",
+    "aspects": [
+      {"aspect": "server", "sentiment": "positive"},
+      {"aspect": "staff", "sentiment": "positive"},
+      {"aspect": "service", "sentiment": "positive"}
+    ]
+  }
+]

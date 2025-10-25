@@ -1,4 +1,4 @@
-from typing import List, Tuple, Union
+from typing import List, Tuple
 import torch
 from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
 from .utils import normalize_aspect, is_valid_aspect_token
