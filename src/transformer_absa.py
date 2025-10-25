@@ -1,6 +1,8 @@
 from typing import List, Tuple
 import torch
 from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
+
+from .base import AspectSentiment
 from .utils import normalize_aspect, is_valid_aspect_token
 
 
@@ -99,21 +101,40 @@ class TransformerABSA:
 
         return self.label_map[pred_index]
 
-    def analyze(self, text: str) -> List[Tuple[str, str]]:
+    def analyze(self, text: str) -> List[AspectSentiment]:
         """
         Perform end-to-end ABSA analysis: extract aspects and classify sentiment.
-
-        Args:
-            text (str): Input text.
-
-        Returns:
-            List[Tuple[str, str]]: List of tuples (aspect, sentiment).
+        Returns a list of AspectSentiment objects.
         """
-        aspects = self.extract_aspects(text)
-        results: List[Tuple[str, str]] = []
+        aspects_data = self.aspect_extractor(text)
+        results: List[AspectSentiment] = []
 
-        for aspect in aspects:
-            sentiment = self.classify_sentiment(text, aspect)
-            results.append((aspect, sentiment))
+        for item in aspects_data:
+            word = item["word"].strip()
+            if item["entity_group"] == "O" or not is_valid_aspect_token(word):
+                continue
+
+            aspect = normalize_aspect(word)
+            confidence = float(item.get("score", 0.0))
+            text_span = (item.get("start", 0), item.get("end", 0))
+
+            # Proper encoding of text/aspect pair
+            inputs = self.tokenizer(text, aspect, return_tensors="pt")
+            if self.device != "cpu":
+                inputs = {k: v.to(self.device) for k, v in inputs.items()}
+
+            with torch.no_grad():
+                logits = self.sentiment_model(**inputs).logits
+                pred_index = torch.argmax(logits, dim=1).item()
+                sentiment = self.label_map[pred_index]
+
+            results.append(
+                AspectSentiment(
+                    aspect=aspect,
+                    sentiment=sentiment,
+                    confidence=confidence,
+                    text_span=text_span
+                )
+            )
 
         return results
