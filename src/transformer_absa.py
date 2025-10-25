@@ -1,9 +1,10 @@
+import string
 from typing import List
 import torch
 from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
 
 from .base import AspectSentiment, ABSAAnalyzer
-from .utils import normalize_aspect, is_valid_aspect_token
+from .utils import normalize_aspect
 
 
 class TransformerABSA(ABSAAnalyzer):
@@ -72,7 +73,7 @@ class TransformerABSA(ABSAAnalyzer):
 
         for r in results:
             word = r["word"].strip()
-            if r["entity_group"] != "O" and is_valid_aspect_token(word):
+            if r["entity_group"] != "O" and word.strip() and word not in string.punctuation:
                 aspects.append(normalize_aspect(word))
 
         return aspects
@@ -111,7 +112,7 @@ class TransformerABSA(ABSAAnalyzer):
 
         for item in aspects_data:
             word = item["word"].strip()
-            if item["entity_group"] == "O" or not is_valid_aspect_token(word):
+            if item["entity_group"] == "O" or not word.strip() and word not in string.punctuation:
                 continue
 
             aspect = normalize_aspect(word)
