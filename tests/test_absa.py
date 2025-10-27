@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import torch
 from src.transformer_absa import TransformerABSA
 from src.lexicon_absa import LexiconABSA
+from src.llm_absa import LLMABSA
 
 
 # ----------------------------
@@ -119,3 +120,31 @@ def test_analyze_returns_list(monkeypatch, lexicon_absa):
 
     results = lexicon_absa.analyze("The food is great.")
     assert isinstance(results, list)
+
+
+# ----------------------------
+# LLMABSA
+# ----------------------------
+@pytest.fixture
+def llm_absa_mock():
+    with patch("src.llm_absa.LLMABSA.analyze") as mock_analyze:
+        mock_analyze.return_value = [
+            MagicMock(aspect="food", sentiment="positive", text_span=(0, 4)),
+            MagicMock(aspect="service", sentiment="negative", text_span=(10, 17)),
+        ]
+        analyzer = LLMABSA(model="mock_model")
+        yield analyzer
+
+def test_llm_analyze_returns_list(llm_absa_mock):
+    results = llm_absa_mock.analyze("Test input text.")
+    assert isinstance(results, list)
+    assert all(hasattr(r, "aspect") and hasattr(r, "sentiment") for r in results)
+
+def test_llm_aspect_sentiments(llm_absa_mock):
+    results = llm_absa_mock.analyze("Test input text.")
+    aspects = {r.aspect for r in results}
+    sentiments = {r.sentiment for r in results}
+    assert "food" in aspects
+    assert "service" in aspects
+    assert "positive" in sentiments
+    assert "negative" in sentiments
