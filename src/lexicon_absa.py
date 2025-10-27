@@ -1,8 +1,11 @@
+# Implementation 1
+
 from typing import List
 import spacy
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from .base import ABSAAnalyzer, AspectSentiment
 from .utils import (
+    find_aspect_root,
     get_or_create_aspect,
     compute_intensity_modifier,
     average_conjunct_sentiments,
@@ -12,12 +15,23 @@ from .utils import (
     _is_valid_candidate
 )
 
+DETERMINERS = {"this", "that", "these", "those", "a", "an", "the"}
 
-def _strip_leading_dets(chunk):
-    start = chunk.start
-    while start < chunk.end and chunk.doc[start].pos_ == "DET":
-        start += 1
-    return chunk.doc[start:chunk.end]
+
+def _normalize_candidate(text: str) -> str:
+    """
+    Normalize a candidate aspect by removing leading determiners.
+
+    Args:
+        text (str): The candidate aspect text.
+
+    Returns:
+        str: Normalized candidate aspect.
+    """
+    words = text.strip().split()
+    while words and words[0].lower() in DETERMINERS:
+        words.pop(0)
+    return " ".join(words)
 
 
 class LexiconABSA(ABSAAnalyzer):
@@ -25,6 +39,8 @@ class LexiconABSA(ABSAAnalyzer):
     Rule-based Aspect-Based Sentiment Analyzer using lexicon methods
     and VADER sentiment scoring.
     """
+
+    PRONOUNS_TO_SKIP = {"which", "that", "this", "it", "they", "he", "she", "we", "you"}
 
     INTENSIFIERS = {
         "very": 0.3, "extremely": 0.5, "incredibly": 0.5, "absolutely": 0.4,
@@ -46,33 +62,17 @@ class LexiconABSA(ABSAAnalyzer):
         """
         self.nlp = spacy.load("en_core_web_trf")
         self.analyzer = SentimentIntensityAnalyzer()
-        self.stopwords = self.nlp.Defaults.stop_words
-
-    def _normalize_candidate(self, text: str) -> str:
-        """
-        Normalize candidate aspect by removing stopwords, determiners, and pronouns.
-        """
-        doc = self.nlp(text)
-        tokens = [
-            t.text for t in doc
-            if not (
-                    t.is_stop
-                    or t.pos_ in {"DET", "PRON"}
-                    or t.text.lower() in self.stopwords  # explicit check for safety
-            )
-        ]
-        return " ".join(tokens)
-
-    @staticmethod
-    def _is_skippable(token) -> bool:
-        """
-        Check if a token should be skipped (stopword, pronoun, or determiner).
-        """
-        return token.is_stop or token.pos_ in {"PRON", "DET"}
 
     def get_sentiment_score(self, token, check_negation: bool = True) -> float:
         """
         Compute the sentiment score of a token considering modifiers and negation.
+
+        Args:
+            token: spaCy token to evaluate.
+            check_negation (bool): Whether to check for negation.
+
+        Returns:
+            float: Sentiment score in range [-1, 1].
         """
         phrase_tokens = [t.text for t in token.lefts if t.dep_ == "advmod"] + [token.text]
         phrase = " ".join(phrase_tokens)
@@ -84,38 +84,41 @@ class LexiconABSA(ABSAAnalyzer):
             score = -score
         return score
 
-
     def analyze(self, text: str) -> List[AspectSentiment]:
         """
         Perform aspect extraction and sentiment scoring on input text.
+
+        Args:
+            text (str): Input text to analyze.
+
+        Returns:
+            List[AspectSentiment]: List of aspects with sentiment and confidence.
         """
         doc = self.nlp(text)
         aspect_dict = {}
         seen_aspects = set()
 
-        # Step 1: Extract candidate aspects
+        # Step 1: Extract candidate aspects from noun chunks
         for chunk in doc.noun_chunks:
-            if self._is_skippable(chunk.root):
+            if chunk.root.pos_ == "PRON":
                 continue
-            chunk_clean = _strip_leading_dets(chunk)
-            candidate = self._normalize_candidate(chunk_clean.text)
-            for c in _split_candidates(candidate):
-                c_norm = self._normalize_candidate(c).lower().strip()
-                if _is_valid_candidate(c_norm, self.nlp) and c_norm not in seen_aspects:
-                    seen_aspects.add(c_norm)
-                    span = (chunk_clean.start_char, chunk_clean.end_char)
-                    get_or_create_aspect(aspect_dict, c_norm, span)
+            aspect_candidate = chunk.root.text
+            for c in _split_candidates(_normalize_candidate(aspect_candidate)):
+                if _is_valid_candidate(c, self.nlp) and c.lower() not in self.PRONOUNS_TO_SKIP:
+                    if c.lower() not in seen_aspects:
+                        seen_aspects.add(c.lower())
+                        span = (chunk.start_char, chunk.end_char)
+                        get_or_create_aspect(aspect_dict, c, span)
 
         # Step 2: Score adjectives modifying aspects
         for chunk in doc.noun_chunks:
-            chunk_clean = _strip_leading_dets(chunk)
-            aspect = self._normalize_candidate(chunk_clean.text).lower().strip()
-            if not aspect or aspect in self.stopwords:
+            aspect = find_aspect_root(chunk)
+            if aspect in self.PRONOUNS_TO_SKIP:
                 continue
-            for child in chunk_clean.root.children:
+            for child in chunk.root.children:
                 if child.dep_ == "amod" and child.pos_ == "ADJ":
                     score = self.get_sentiment_score(child)
-                    span = (chunk_clean.start_char, chunk_clean.end_char)
+                    span = (chunk.start_char, chunk.end_char)
                     get_or_create_aspect(aspect_dict, aspect, span)
                     aspect_dict[aspect]["scores"].append(score)
 
@@ -124,18 +127,15 @@ class LexiconABSA(ABSAAnalyzer):
             if token.pos_ == "ADJ" and token.dep_ in {"acomp", "attr"}:
                 head = token.head
                 for subj in [t for t in head.children if t.dep_ in {"nsubj", "nsubjpass"}]:
-                    if self._is_skippable(subj):
-                        continue
                     for chunk in doc.noun_chunks:
                         if subj in chunk:
-                            chunk_clean = _strip_leading_dets(chunk)
-                            aspect = self._normalize_candidate(chunk_clean.text).lower().strip()
-                            if not aspect or aspect in self.stopwords:
+                            aspect = find_aspect_root(chunk)
+                            if aspect in self.PRONOUNS_TO_SKIP:
                                 continue
                             score = self.get_sentiment_score(token, check_negation=False)
                             if has_phrase_negation(head):
                                 score = -score * 0.8
-                            span = (chunk_clean.start_char, chunk_clean.end_char)
+                            span = (chunk.start_char, chunk.end_char)
                             get_or_create_aspect(aspect_dict, aspect, span)
                             aspect_dict[aspect]["scores"].append(score)
 
@@ -147,21 +147,20 @@ class LexiconABSA(ABSAAnalyzer):
                     verb_score = self.analyzer.polarity_scores(verb.text)["compound"]
                     if abs(verb_score) > 0.1:
                         for child in verb.children:
-                            if child.dep_ in {"dobj", "pobj", "nsubj"} and not self._is_skippable(child):
+                            if child.dep_ in {"dobj", "pobj", "nsubj"}:
                                 for chunk in doc.noun_chunks:
                                     if child in chunk:
-                                        chunk_clean = _strip_leading_dets(chunk)
-                                        aspect = self._normalize_candidate(chunk_clean.text).lower().strip()
-                                        if not aspect or aspect in self.stopwords:
+                                        aspect = find_aspect_root(chunk)
+                                        if aspect in self.PRONOUNS_TO_SKIP:
                                             continue
                                         score = verb_score
                                         if has_phrase_negation(verb):
                                             score = -score * 0.8
-                                        span = (chunk_clean.start_char, chunk_clean.end_char)
+                                        span = (chunk.start_char, chunk.end_char)
                                         get_or_create_aspect(aspect_dict, aspect, span)
                                         aspect_dict[aspect]["scores"].append(score)
 
-        # Step 5: Aggregate results
+        # Step 5: Aggregate sentiment scores per aspect
         aspect_sentiments: List[AspectSentiment] = []
         for aspect_text, data in aspect_dict.items():
             if not data["scores"]:
