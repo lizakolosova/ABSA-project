@@ -36,7 +36,7 @@ def test_extract_aspects(transformer_absa, monkeypatch):
     assert len(aspects) == 2
 
 
-def test_classify_sentiment(transformer_absa, monkeypatch):
+def test_classify_sentiment(transformer_absa):
     class DummyModelOutput:
         def __init__(self):
             self.logits = torch.tensor([[0.1, 0.2, 0.7]])  # → index 2 → positive
@@ -105,7 +105,7 @@ def test_analyze_returns_list(monkeypatch, lexicon_absa):
                         lambda adict, aspect, span: adict.setdefault(aspect, {"scores": [], "text_span": span}))
     monkeypatch.setattr("src.lexicon_absa.aggregate_sentiment_scores",
                         lambda scores: ("positive", 0.9))
-    monkeypatch.setattr("src.lexicon_absa._strip_leading_dets",
+    monkeypatch.setattr("src.lexicon_absa._normalize_candidate",
                         lambda chunk: chunk)
     monkeypatch.setattr("src.lexicon_absa._split_candidates",
                         lambda candidate: [candidate])
