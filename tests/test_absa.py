@@ -109,7 +109,8 @@ class TestLexiconABSA:
         assert hasattr(mock_lexicon, 'analyzer')
 
     def test_analyze_empty_raises(self, mock_lexicon):
-        with pytest.raises(ValueError):
+        # analyze() wraps validate_input's ValueError in a RuntimeError
+        with pytest.raises(RuntimeError):
             mock_lexicon.analyze("")
 
     def test_analyze_returns_list(self, mock_lexicon):
